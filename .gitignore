@@ -1,0 +1,17 @@
+# Qt 编译生成的目录
+build-*/
+*.Debug
+*.Release
+Makefile*
+
+# 编译中间文件和输出程序
+*.o
+*.obj
+*.exe
+*.dll
+*.a
+*.lib
+
+# Qt Creator 配置文件
+*.pro.user
+*.pro.user.**.zip
