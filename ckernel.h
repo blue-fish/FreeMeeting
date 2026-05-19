@@ -14,7 +14,7 @@
 #include"screenread.h"
 #include"theradworker.h"
 #include <QMutex>
-
+#include"asrclient.h"
 /***************************OPUS优化**************/
 #include"AudioWorld.h"
 #include"sdlaudioread.h"
@@ -121,6 +121,9 @@ public slots:
         void slot_sendEncodedVideo(char *buf, int len);
         void slot_dealVideoH264Rq(uint sock, char *buf, int nlen);
         void slot_showDecodedVideo(int userid, QImage image);
+        void slot_recognitionChanged(bool enabled);
+        void slot_asrTextRecognized(int userId, const QString& text, bool isFinal, qint64 timestamp);
+        void slot_asrStatusChanged(bool available, const QString& message);
 private:
         WeChatDialog* m_pWechatDlg;
         INetMediator* m_pClient;
@@ -142,9 +145,9 @@ private:
         //当前使用SDL音频播放器
         SDLAudioRead* m_pSDLAudioRead;
         std::map<int,SDLAudioWrite*>m_mapIdtoSDLAudioWrite;
+        std::map<int, QString> m_mapIdToName;
         ////////////////////////////
         /// 视频采集
-        ///
         VideoRead* m_pVideoRead;
         ScreenRead* m_pScreenRead;
 

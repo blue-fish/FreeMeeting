@@ -5,6 +5,9 @@
 #include<QVBoxLayout>
 #include "usershow.h"
 #include"QCloseEvent"
+#include <QFile>
+#include <QLabel>
+#include <QStringList>
 
 #define USE_OPUS (1)
 
@@ -28,6 +31,7 @@ signals:
     void SIG_screenStart();
     void SIG_screenPause();
     void SIG_setMoji(int moji);
+    void SIG_recognitionChanged(bool enabled);
 
 public:
     explicit RoomDialog(QWidget *parent = nullptr);
@@ -45,6 +49,9 @@ public slots:
 
     void slot_setBigImageId(int id,QString name);
     void slot_setScreenCheck(bool check);
+    void slot_setCaptionEnabled(bool check);
+    void slot_appendCaption(int id, QString name, QString text, bool isFinal, qint64 timestamp);
+    void slot_showAsrStatus(bool available, QString message);
 private slots:
     void on_pb_close_clicked();
 
@@ -61,11 +68,24 @@ private slots:
     void on_cb_moji_currentIndexChanged(int index);
 
     void on_cb_video_clicked();
+    void on_cb_Recognition_clicked();
+
+protected:
+    void resizeEvent(QResizeEvent* event);
 
 private:
+    void setupCaptionPanel();
+    void updateCaptionPanelGeometry();
+    void ensureRecordFile();
+    void writeRecordLine(const QString& name, const QString& text, qint64 timestamp);
+
     Ui::RoomDialog *ui;
     QVBoxLayout* m_mainLayout;
     std::map<int,UserShow*>m_mapIDToUserShow;
+    QLabel* m_captionLabel;
+    QStringList m_recentCaptions;
+    QFile m_recordFile;
+    bool m_captionEnabled;
 };
 
 #endif // ROOMDIALOG_H

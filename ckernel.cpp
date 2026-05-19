@@ -66,6 +66,10 @@ void Ckernel::initConfig()
 Ckernel::Ckernel(QObject *parent) : QObject(parent)
 {
      qDebug()<<"main thread:"<<QThread::currentThread();
+     m_id = 0;
+     m_roomid = 0;
+     m_pAudioRead = nullptr;
+     m_pSDLAudioRead = nullptr;
      setNetPackMap();
      initConfig();
     m_pWechatDlg = new WeChatDialog;
@@ -95,6 +99,11 @@ Ckernel::Ckernel(QObject *parent) : QObject(parent)
     connect(m_pRoomdlg,SIGNAL(SIG_videoStart()),this,SLOT(slot_startVideo()));
     connect(m_pRoomdlg,SIGNAL(SIG_screenPause()),this,SLOT(slot_pauseScreen()));
     connect(m_pRoomdlg,SIGNAL(SIG_screenStart()),this,SLOT(slot_startScreen()));
+    connect(m_pRoomdlg,SIGNAL(SIG_recognitionChanged(bool)),this,SLOT(slot_recognitionChanged(bool)));
+    connect(&AsrClient::instance(),SIGNAL(textRecognized(int,QString,bool,qint64)),
+            this,SLOT(slot_asrTextRecognized(int,QString,bool,qint64)));
+    connect(&AsrClient::instance(),SIGNAL(statusChanged(bool,QString)),
+            this,SLOT(slot_asrStatusChanged(bool,QString)));
     //添加网络--第一条tcp连接
     m_pClient=new TcpClientMediator;
    // m_pClient->OpenNet( m_serverIp.toStdString().c_str(),_DEF_TCP_PORT );
@@ -116,6 +125,18 @@ Ckernel::Ckernel(QObject *parent) : QObject(parent)
     m_pSDLAudioRead = new SDLAudioRead;
     connect(m_pSDLAudioRead,SIGNAL(SIG_sendAudioFrame(QByteArray ))
             ,this,SLOT(slot_audioFrame(QByteArray)));
+    
+#if 0
+    SherpaOnnxManager::instance().initialize(
+        "E:/colinCode/stage_project/Wechat/sherpa-onnx-streaming-paraformer-bilingual-zh-en/tokens.txt",
+        "E:/colinCode/stage_project/Wechat/sherpa-onnx-streaming-paraformer-bilingual-zh-en/encoder.onnx",
+        "E:/colinCode/stage_project/Wechat/sherpa-onnx-streaming-paraformer-bilingual-zh-en/decoder.onnx"
+    );
+    connect(&SherpaOnnxManager::instance(),&SherpaOnnxManager::textRecognized,[](const QString &text) {
+             qDebug() << "识别结果：" << text;
+             // 更新 UI 或执行后续操作
+    });
+#endif
 
 #else
     //QT 的音频采集
@@ -289,6 +310,13 @@ void Ckernel::slot_dealLoginRs(uint sock, char *buf, int nlen)
         //id 和名字记录
         m_id = rs->userid;
         m_name=QString::fromStdString( rs->m_name);
+        m_mapIdToName[m_id] = m_name;
+        AsrClient::instance().setCurrentUserId(m_id);
+#ifdef USE_OPUS
+        if (m_pSDLAudioRead) {
+            m_pSDLAudioRead->setUserId(m_id);
+        }
+#endif
         m_pLogindlg->hide();
         m_pWechatDlg->setInfo(rs->m_name);
         m_pWechatDlg->showNormal();
@@ -385,7 +413,9 @@ void Ckernel::slot_dealRoomMemberRq(uint sock, char *buf, int nlen)
     qDebug()<<__func__<<"房间成员姓名："<<rq->m_szUser;
     //创建用户对应的控件
     UserShow* user = new UserShow;
-    user->slot_setInfo(rq->m_UserID,QString::fromStdString(rq->m_szUser));
+    QString memberName = QString::fromStdString(rq->m_szUser);
+    m_mapIdToName[rq->m_UserID] = memberName;
+    user->slot_setInfo(rq->m_UserID,memberName);
     connect(user,SIGNAL(SIG_itemClicked(int,QString)),
             m_pRoomdlg,SLOT(slot_setBigImageId(int,QString)));
     m_pRoomdlg->slot_addUserShow(user);
@@ -394,9 +424,9 @@ void Ckernel::slot_dealRoomMemberRq(uint sock, char *buf, int nlen)
     //音频内容
     SDLAudioWrite* aw =  NULL;
     //为每个人创建播放对象
-    if(m_mapIdtoAudioWrite.count(rq->m_UserID)==0)
+    if(m_mapIdtoSDLAudioWrite.count(rq->m_UserID)==0)
     {
-        aw = new SDLAudioWrite;
+        aw = new SDLAudioWrite(rq->m_UserID);
         m_mapIdtoSDLAudioWrite[rq->m_UserID]=aw ;
     }
    #else
@@ -423,13 +453,23 @@ void Ckernel::slot_dealLeaveRoomRq(uint sock, char *buf, int nlen)
     {
         m_pRoomdlg->slot_removeUserShow(rq->m_nUserId);
     }
+    m_mapIdToName.erase(rq->m_nUserId);
     //去掉对应音频
+#ifdef USE_OPUS
+    if(m_mapIdtoSDLAudioWrite.count(rq->m_nUserId)>0)
+    {
+        SDLAudioWrite * pAw =m_mapIdtoSDLAudioWrite[rq->m_nUserId];
+        m_mapIdtoSDLAudioWrite.erase(rq->m_nUserId);
+        delete pAw;
+    }
+#else
     if(m_mapIdtoAudioWrite.count(rq->m_nUserId)>0)
     {
         AudioWrite * pAw =m_mapIdtoAudioWrite[rq->m_nUserId];
         m_mapIdtoAudioWrite.erase(rq->m_nUserId);
         delete pAw;
     }
+#endif
 
 
 }
@@ -458,7 +498,7 @@ void Ckernel::slot_dealAudioFrameRq(uint sock, char *buf, int nlen)
     tmp += sizeof(int);
 
     roomId=*(int*)tmp ;
-    tmp += sizeof(tmp);
+    tmp += sizeof(int);
 
 
     tmp += sizeof(int);
@@ -611,6 +651,13 @@ void Ckernel::slot_dealVefCodeRs(uint sock, char *buf, int nlen)
         //id 和名字记录
         m_id = rs->m_userid;
         m_name=QString::fromStdString( rs->m_name);
+        m_mapIdToName[m_id] = m_name;
+        AsrClient::instance().setCurrentUserId(m_id);
+#ifdef USE_OPUS
+        if (m_pSDLAudioRead) {
+            m_pSDLAudioRead->setUserId(m_id);
+        }
+#endif
         m_pLogindlg->hide();
         m_pWechatDlg->setInfo(rs->m_name);
         m_pWechatDlg->showNormal();
@@ -722,6 +769,14 @@ void Ckernel::slot_quitRoom()
         delete pWrite;
     }
 #endif
+    AsrClient::instance().setEnabled(false);
+    if (m_pRoomdlg) {
+        m_pRoomdlg->slot_setCaptionEnabled(false);
+    }
+    m_mapIdToName.clear();
+    if (m_id > 0) {
+        m_mapIdToName[m_id] = m_name;
+    }
     m_roomid=0;
     //回收资源
     m_pRoomdlg->slot_clearUserShow();
@@ -774,6 +829,35 @@ void Ckernel::slot_refreshVideo(int id, QImage &img)
 {
     m_pRoomdlg->slot_refreshUser(id,img);
 }
+
+void Ckernel::slot_recognitionChanged(bool enabled)
+{
+    AsrClient::instance().setEnabled(enabled);
+    if (m_pRoomdlg) {
+        m_pRoomdlg->slot_setCaptionEnabled(enabled);
+    }
+}
+
+void Ckernel::slot_asrTextRecognized(int userId, const QString& text, bool isFinal, qint64 timestamp)
+{
+    QString name;
+    if (m_mapIdToName.count(userId) > 0) {
+        name = m_mapIdToName[userId];
+    } else if (userId == m_id) {
+        name = m_name;
+    }
+    if (m_pRoomdlg) {
+        m_pRoomdlg->slot_appendCaption(userId, name, text, isFinal, timestamp);
+    }
+}
+
+void Ckernel::slot_asrStatusChanged(bool available, const QString& message)
+{
+    if (m_pRoomdlg) {
+        m_pRoomdlg->slot_showAsrStatus(available, message);
+    }
+}
+
 //发送音频帧
 ///音频数据帧
 /// 成员描述
@@ -800,22 +884,22 @@ void Ckernel::slot_audioFrame(QByteArray ba)
     int msec = tm.msec();
 
     *(int*)tmp = type;
-    tmp += sizeof(tmp);
+    tmp += sizeof(int);
     //按照整形存
     *(int*)tmp = userId;
-    tmp += sizeof(tmp);
+    tmp += sizeof(int);
 
     *(int*)tmp = roomId;
-    tmp += sizeof(tmp);
+    tmp += sizeof(int);
 
     *(int*)tmp = min;
-    tmp += sizeof(tmp);
+    tmp += sizeof(int);
 
     *(int*)tmp = sec;
-    tmp += sizeof(tmp);
+    tmp += sizeof(int);
 
     *(int*)tmp = msec;
-    tmp += sizeof(tmp);
+    tmp += sizeof(int);
 
     memcpy(tmp,ba.data(),ba.size());
     m_pAVClient[audio_client]->SendData(0,buf,nPackSize);

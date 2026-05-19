@@ -2,9 +2,16 @@
 #include "ui_roomdialog.h"
 #include"QMessageBox"
 #include"QDebug"
+#include <QCoreApplication>
+#include <QDateTime>
+#include <QDir>
+#include <QResizeEvent>
+#include <QTextStream>
 RoomDialog::RoomDialog(QWidget *parent) :
     QDialog(parent),
-    ui(new Ui::RoomDialog)
+    ui(new Ui::RoomDialog),
+    m_captionLabel(nullptr),
+    m_captionEnabled(false)
 {
     ui->setupUi(this);
     m_mainLayout = new QVBoxLayout;
@@ -12,6 +19,8 @@ RoomDialog::RoomDialog(QWidget *parent) :
     m_mainLayout->setSpacing(5);
     //设置垂直布局的画布
     ui->wdg_list->setLayout(m_mainLayout);
+    setupCaptionPanel();
+    ui->cb_Recognition->setChecked(false);
 
 }
 
@@ -90,6 +99,62 @@ void RoomDialog::slot_setScreenCheck(bool check)
 {
     ui->cb_desk->setChecked(check);
 }
+
+void RoomDialog::slot_setCaptionEnabled(bool check)
+{
+    m_captionEnabled = check;
+    ui->cb_Recognition->setChecked(check);
+    if (!m_captionLabel) {
+        return;
+    }
+    m_captionLabel->setVisible(check);
+    if (!check) {
+        m_recentCaptions.clear();
+        m_captionLabel->clear();
+    }
+}
+
+void RoomDialog::slot_appendCaption(int id, QString name, QString text, bool isFinal, qint64 timestamp)
+{
+    if (!m_captionEnabled || text.trimmed().isEmpty()) {
+        return;
+    }
+    if (name.trimmed().isEmpty()) {
+        name = QString("User %1").arg(id);
+    }
+
+    const QString line = QString("%1: %2").arg(name, text.trimmed());
+    if (isFinal) {
+        if (m_recentCaptions.isEmpty() || m_recentCaptions.last() != line) {
+            m_recentCaptions << line;
+        }
+        writeRecordLine(name, text.trimmed(), timestamp);
+    } else {
+        if (m_recentCaptions.isEmpty()) {
+            m_recentCaptions << line;
+        } else {
+            m_recentCaptions.last() = line;
+        }
+    }
+
+    while (m_recentCaptions.size() > 5) {
+        m_recentCaptions.removeFirst();
+    }
+    if (m_captionLabel) {
+        m_captionLabel->setText(m_recentCaptions.join("\n"));
+        updateCaptionPanelGeometry();
+    }
+}
+
+void RoomDialog::slot_showAsrStatus(bool available, QString message)
+{
+    if (!m_captionEnabled || available || !m_captionLabel) {
+        return;
+    }
+    m_captionLabel->setVisible(true);
+    m_captionLabel->setText(QString("[ASR unavailable] %1").arg(message));
+}
+
 void RoomDialog::slot_setBigImageId(int id,QString name)
 {
 
@@ -186,5 +251,78 @@ void RoomDialog::on_cb_video_clicked()
          Q_EMIT SIG_videoPause();
 
     }
+}
+
+void RoomDialog::on_cb_Recognition_clicked()
+{
+    slot_setCaptionEnabled(ui->cb_Recognition->isChecked());
+    Q_EMIT SIG_recognitionChanged(ui->cb_Recognition->isChecked());
+}
+
+void RoomDialog::resizeEvent(QResizeEvent* event)
+{
+    QDialog::resizeEvent(event);
+    updateCaptionPanelGeometry();
+}
+
+void RoomDialog::setupCaptionPanel()
+{
+    m_captionLabel = new QLabel(ui->videoArea);
+    m_captionLabel->setObjectName("captionLabel");
+    m_captionLabel->setWordWrap(true);
+    m_captionLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    m_captionLabel->setStyleSheet(
+        "QLabel {"
+        "background-color: rgba(0, 0, 0, 170);"
+        "color: white;"
+        "border-radius: 8px;"
+        "padding: 10px 14px;"
+        "font-size: 16px;"
+        "}");
+    m_captionLabel->hide();
+    updateCaptionPanelGeometry();
+}
+
+void RoomDialog::updateCaptionPanelGeometry()
+{
+    if (!m_captionLabel || !ui || !ui->videoArea) {
+        return;
+    }
+    const int margin = 20;
+    const int height = 120;
+    const int width = qMax(280, ui->videoArea->width() - margin * 2);
+    const int y = qMax(margin, ui->videoArea->height() - height - margin);
+    m_captionLabel->setGeometry(margin, y, width, height);
+    m_captionLabel->raise();
+}
+
+void RoomDialog::ensureRecordFile()
+{
+    if (m_recordFile.isOpen()) {
+        return;
+    }
+    QDir dir(QCoreApplication::applicationDirPath());
+    if (!dir.exists("meeting_records")) {
+        dir.mkdir("meeting_records");
+    }
+    const QString fileName = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss") + ".txt";
+    m_recordFile.setFileName(dir.filePath("meeting_records/" + fileName));
+    m_recordFile.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text);
+}
+
+void RoomDialog::writeRecordLine(const QString& name, const QString& text, qint64 timestamp)
+{
+    ensureRecordFile();
+    if (!m_recordFile.isOpen()) {
+        return;
+    }
+    const QDateTime time = timestamp > 0
+        ? QDateTime::fromMSecsSinceEpoch(timestamp)
+        : QDateTime::currentDateTime();
+    QTextStream out(&m_recordFile);
+    out.setCodec("UTF-8");
+    out << "[" << time.toString("HH:mm:ss") << "] "
+        << name << ": " << text << "\n";
+    out.flush();
 }
 
