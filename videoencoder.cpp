@@ -103,7 +103,7 @@ void VideoEncoder::uninit()
     m_isInit = false;
 }
 
-void VideoEncoder::addFrame(int userid, int roomid, const QImage& image)
+void VideoEncoder::addFrame(int userid, int roomid, const QImage& image,int64_t time)
 {
     if(!m_isInit) return;
 
@@ -112,7 +112,7 @@ void VideoEncoder::addFrame(int userid, int roomid, const QImage& image)
     task.roomid = roomid;
     task.image = image;
     task.pts = m_pts++;
-
+    task.captureTimestamp = time;
     QMutexLocker locker(&m_mutex);
     m_taskQueue.enqueue(task);
 }
@@ -185,7 +185,7 @@ bool VideoEncoder::encodeFrame(const EncodeTask& task)
         pPack->roomid = task.roomid;
         pPack->width = m_width;
         pPack->height = m_height;
-        pPack->timestamp = 0;  // 将在发送时设置
+        pPack->timestamp = task.captureTimestamp;  // 直接用采集时刻的时间戳
         pPack->frameType = (m_packet->flags & AV_PKT_FLAG_KEY) ? 1 : 0; //判断是否是关键帧
         pPack->dataLen = m_packet->size;
         memcpy(pPack->data, m_packet->data, m_packet->size);

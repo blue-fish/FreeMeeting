@@ -16,7 +16,7 @@
 #define _DEF_PACK_COUNT (100)
 
 #define _DEF_PORT 8080
-#define _DEF_SERVERIP "192.168.184.133"
+#define _DEF_SERVERIP "192.168.184.134"
 //192.168.184.131  or 127.0.0.1
 
 //注册
@@ -324,6 +324,23 @@ struct STRU_VEFCODE_RS
 /// QByteArray videoFrame;
 ///
 ///
+
+struct STRU_AUDIO_FRAME_V2
+{
+    STRU_AUDIO_FRAME_V2() {
+        type = DEF_PACK_AUDIO_FRAME;
+        userid = 0;
+        roomid = 0;
+        timestamp = 0;
+        dataLen = 0;
+    }
+    int type;
+    int userid;
+    int roomid;
+    int64_t timestamp;
+    int dataLen;
+    char data[];
+};
 
 struct STRU_VIDEO_H264_V2
 {

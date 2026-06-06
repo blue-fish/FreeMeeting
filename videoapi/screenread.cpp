@@ -1,5 +1,6 @@
 #include "screenread.h"
 #include"common.h"
+#include"QTime"
 ScreenRead::ScreenRead(QObject *parent) : QObject(parent)
 {
     m_timer = new QTimer(this);
@@ -26,7 +27,8 @@ void ScreenRead::slot_getSreenFrame()
    //  QImage image = map.toImage().convertToFormat(QImage::Format_RGB888);
      //缩放，改变尺寸
     // image = image.scaled( 1600, 900, Qt::KeepAspectRatio, Qt::SmoothTransformation );
-     Q_EMIT SIG_getScreenFrame(image);
+     qint64 time = QDateTime::currentMSecsSinceEpoch();
+     Q_EMIT SIG_getScreenFrame(image,time);
 
 }
 

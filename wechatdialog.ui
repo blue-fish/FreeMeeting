@@ -42,7 +42,7 @@
      <property name="autoFillBackground">
       <bool>true</bool>
      </property>
-     <widget class="QWidget" name="">
+     <widget class="QWidget" name="layoutWidget">
       <property name="geometry">
        <rect>
         <x>0</x>
@@ -160,7 +160,7 @@
        </rect>
       </property>
       <property name="text">
-       <string> </string>
+       <string/>
       </property>
       <property name="icon">
        <iconset resource="resourcce.qrc">
@@ -207,10 +207,10 @@
        </rect>
       </property>
       <property name="text">
-       <string> </string>
+       <string/>
       </property>
       <property name="icon">
-       <iconset resource="resourcce.qrc">
+       <iconset>
         <normaloff>:/images/sett.png</normaloff>:/images/sett.png</iconset>
       </property>
       <property name="flat">
@@ -220,8 +220,8 @@
      <widget class="QScrollArea" name="scrollArea">
       <property name="geometry">
        <rect>
-        <x>10</x>
-        <y>200</y>
+        <x>50</x>
+        <y>240</y>
         <width>421</width>
         <height>381</height>
        </rect>

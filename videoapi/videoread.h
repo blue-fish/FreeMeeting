@@ -8,7 +8,7 @@
 #include"theradworker.h"
 #include"myfacedetact.h"
 
-//定义压缩图片的宽高
+//定义压缩图片的宽度和高度
 #define IMAGE_WIDTH (320)
 #define IMAGE_HEIGHT (240)
 
@@ -23,7 +23,7 @@ public:
 
 
 signals:
-    void SIG_sendVideoFrame(QImage img);
+    void SIG_sendVideoFrame(QImage img, qint64 time);
 public slots:
     void slot_getVideoFram();
     void slot_openVideo();

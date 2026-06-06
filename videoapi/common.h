@@ -1,4 +1,4 @@
-#ifndef COMMON_H
+﻿#ifndef COMMON_H
 #define COMMON_H
 #include"highgui/highgui.hpp"
 #include"imgproc/imgproc.hpp"
@@ -20,7 +20,7 @@ using namespace cv;
 
 
 //#include<opencv2/imgproc/types_c.h>
-//#include<opencv2/opencv.hpp>
+////#include<opencv2/opencv.hpp>
 //#include<opencv2/face.hpp>
 //#include<highgui/highgui.hpp>
 //#include<imgproc/imgproc.hpp>
@@ -31,9 +31,8 @@ using namespace cv;
 #include<QDebug>
 #include<QImage>
 
-//加人脸加测的头文件
-#include<opencv2/opencv.hpp>
-//#include"facedetectcnn.h"
+//#include<opencv2/opencv.hpp>
+#include"facedetectcnn.h"
 
 
 #define FRAME_RATE (25)

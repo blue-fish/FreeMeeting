@@ -33,7 +33,7 @@ extern "C"
 
 #include "avsyncmanager.h"
 
-//协议映射表的使用类型
+//鍗忚鏄犲皠琛ㄧ殑浣跨敤绫诲瀷
 class Ckernel;
 
 typedef void (Ckernel::*PFUN) (uint sock,char* buf,int nlen);
@@ -45,7 +45,7 @@ class Ckernel : public QObject
 public:
     explicit Ckernel(QObject *parent = nullptr);
 
-    //单例
+    //鍗曚緥
     static Ckernel* GetInstance()
     {
            static Ckernel kernel;
@@ -54,21 +54,21 @@ public:
 signals:
     void SIG_SendVideo(char*buf, int nlen);
 public slots:
-        //设置协议映射关系
+        //璁剧疆鍗忚鏄犲皠鍏崇郴
         void setNetPackMap();
-        //初始化配置
+        //鍒濆鍖栭厤缃?
         void initConfig();
         void slot_destroy();
 
-        //发送登录信息
+        //鍙戦€佺櫥褰曚俊鎭?
         void slot_loginCommit(QString tel,QString password);
-        //发送注册信息
+        //鍙戦€佹敞鍐屼俊鎭?
         void slot_registerCommit(QString tel,QString password,QString name );
-        //提交加入房间的申请
+        //鎻愪氦鍔犲叆鎴块棿鐨勭敵璇?
         void slot_joinRoom();
-        //提交创建房间的申请
+        //鎻愪氦鍒涘缓鎴块棿鐨勭敵璇?
         void slot_createRoom();
-        //退出房间
+        //閫€鍑烘埧闂?
         void slot_quitRoom();
         void slot_startAudio();
         void slot_pauseAudio();
@@ -79,43 +79,42 @@ public slots:
         void slot_startScreen();
         void slot_pauseScreen();
 
-        //刷新图片显示
+        //鍒锋柊鍥剧墖鏄剧ず
        void slot_refreshVideo(int id,QImage& img);
-        //发送音频帧
-        void slot_audioFrame(QByteArray ba);
-
-        // 新增：初始化FFmpeg编码器
+        //鍙戦€侀煶棰戝抚
+        void slot_audioFrame(QByteArray ba, int64_t timestamp = 0);
+        // 鏂板锛氬垵濮嬪寲FFmpeg缂栫爜鍣?
         //bool initFFmpegEncoder();
         //bool initFFmpegDecoder();
 
-        //发送视频帧
-        void slot_sendVideoFrame( QImage img);
-        //多线程发送视频
+        //鍙戦€佽棰戝抚
+        void slot_sendVideoFrame( QImage img,qint64 time);
+        void slot_sendVefCode(QByteArray ba);
+        //澶氱嚎绋嬪彂閫佽棰?
         void slot_SendVideo(char*buf, int nlen);
-        //请求验证码
-        void slot_sendVefCode(QByteArray  ba);
-        //提交验证码
+        //璇锋眰楠岃瘉鐮?
+        //鎻愪氦楠岃瘉鐮?
         void slot_commitVefCode(QByteArray ba);
 
-        //网络信息处理
+        //缃戠粶淇℃伅澶勭悊
         void slot_dealData(uint sock,char* buf,int nlen);
-        //登录回复处理
+        //鐧诲綍鍥炲澶勭悊
         void slot_dealLoginRs(uint sock,char* buf,int nlen);
-        //注册回复处理
+        //娉ㄥ唽鍥炲澶勭悊
         void slot_dealRegisterRs(uint sock,char* buf,int nlen);
-       //创建房间回复
+       //鍒涘缓鎴块棿鍥炲
         void slot_dealCreateRoomRs(uint sock,char* buf,int nlen);
-        //加入房间的回复
+        //鍔犲叆鎴块棿鐨勫洖澶?
         void slot_dealJoinRoomRs(uint sock,char* buf,int nlen);
-        //房间成员请求处理
+        //鎴块棿鎴愬憳璇锋眰澶勭悊
         void slot_dealRoomMemberRq(uint sock,char* buf,int nlen);
-        //离开房间的处理
+        //绂诲紑鎴块棿鐨勫鐞?
         void slot_dealLeaveRoomRq(uint sock,char* buf,int nlen);
-        //音频帧处理
+        //闊抽甯у鐞?
         void slot_dealAudioFrameRq(uint sock,char* buf,int nlen);
-        //视频帧处理
+        //瑙嗛甯у鐞?
         void slot_dealVideoFrameRq(uint sock,char* buf,int nlen);
-        //验证码结果处理
+        //楠岃瘉鐮佺粨鏋滃鐞?
         void slot_dealVefCodeRs(uint sock,char* buf,int nlen);
 
         void slot_sendEncodedVideo(char *buf, int len);
@@ -139,10 +138,10 @@ private:
         QString m_name;
 
         ///////
-        /// 音频 一个采集 多个播放 每一个成员 1:1 map映射
+        /// 闊抽 涓€涓噰闆?澶氫釜鎾斁 姣忎竴涓垚鍛?1:1 map鏄犲皠
         AudioRead* m_pAudioRead;
         std::map<int , AudioWrite*>m_mapIdtoAudioWrite;
-        //当前使用SDL音频播放器
+        //褰撳墠浣跨敤SDL闊抽鎾斁鍣?
         SDLAudioRead* m_pSDLAudioRead;
         std::map<int,SDLAudioWrite*>m_mapIdtoSDLAudioWrite;
         std::map<int, QString> m_mapIdToName;
@@ -153,35 +152,35 @@ private:
 
        enum client_type{audio_client = 0,video_client };
          INetMediator* m_pAVClient[2];
-        //发送视频的工作线程对应的指针
+        //鍙戦€佽棰戠殑宸ヤ綔绾跨▼瀵瑰簲鐨勬寚閽?
         QSharedPointer<sendVideoWorker> m_pSendVideoWorker;
         QSharedPointer<sendVideoWorker> m_pSendScreenWorker;
-//        // FFmpeg编码相关（保持不变）
+//        // FFmpeg缂栫爜鐩稿叧锛堜繚鎸佷笉鍙橈級
 //            AVCodec *m_codec = nullptr;
 //            AVCodecContext *m_codecCtx = nullptr;
 //            AVFrame *m_frame = nullptr;
 //            AVPacket *m_packet = nullptr;
 //            SwsContext *m_swsCtx = nullptr;
 
-//            // 新增：FFmpeg解码相关
+//            // 鏂板锛欶Fmpeg瑙ｇ爜鐩稿叧
 //            AVCodec *m_decoder = nullptr;
 //            AVCodecContext *m_decoderCtx = nullptr;
-//            AVFrame *m_decFrame = nullptr;    // 解码后的YUV帧
-//            AVFrame *m_rgbFrame = nullptr;   // 转换后的RGB帧
+//            AVFrame *m_decFrame = nullptr;    // 瑙ｇ爜鍚庣殑YUV甯?
+//            AVFrame *m_rgbFrame = nullptr;   // 杞崲鍚庣殑RGB甯?
 //            AVPacket *m_decPacket = nullptr;
 //            SwsContext *m_swsDecCtx = nullptr;
 
-//            // 解码缓冲区（用于暂存网络数据）
+//            // 瑙ｇ爜缂撳啿鍖猴紙鐢ㄤ簬鏆傚瓨缃戠粶鏁版嵁锛?
 //            QByteArray m_decBuffer;
-//            QMutex m_decMutex;  // 线程安全锁
+//            QMutex m_decMutex;  // 绾跨▼瀹夊叏閿?
         /////////////////////////////////////
-        /// H.264编解码
+        /// H.264缂栬В鐮?
         ///
-        VideoEncoder* m_videoEncoder;           // 摄像头编码器
-        VideoEncoder* m_screenEncoder;          // 桌面编码器
-        std::map<int, VideoDecoder*> m_mapIDToDecoder; // 用户ID到解码器的映射
+        VideoEncoder* m_videoEncoder;           // 鎽勫儚澶寸紪鐮佸櫒
+        VideoEncoder* m_screenEncoder;          // 妗岄潰缂栫爜鍣?
+        std::map<int, VideoDecoder*> m_mapIDToDecoder; // 鐢ㄦ埛ID鍒拌В鐮佸櫒鐨勬槧灏?
 
-        // 音视频同步管理器
+        // 闊宠棰戝悓姝ョ鐞嗗櫒
         std::map<int, AVSyncManager*> m_mapIDToSyncManager;
 
 

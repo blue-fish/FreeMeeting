@@ -32,6 +32,6 @@ LIBS+=E:/colin/Qt/opencv/opencv-release/lib/libopencv_calib3d420.dll.a\
 #LIBS+=$$PWD/opencv-4.5.4-with_contrib_qt_5.12.11_x86_mingw32/lib/libopencv_*.dll.a
 
 
-#INCLUDEPATH += $$PWD/libfacedetection/include
+INCLUDEPATH += $$PWD/libfacedetection/include
 
-#LIBS+=$$PWD/libfacedetection/lib/libfacedetection.dll.a
+LIBS+=$$PWD/libfacedetection/lib/libfacedetection.dll.a

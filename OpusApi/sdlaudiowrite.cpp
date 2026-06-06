@@ -1,6 +1,9 @@
-#include "sdlaudiowrite.h"
+﻿#include "sdlaudiowrite.h"
+#include "asrclient.h"
 
-SDLAudioWrite::SDLAudioWrite(QObject *parent) : QObject(parent)
+SDLAudioWrite::SDLAudioWrite(int userId, QObject *parent)
+    : QObject(parent)
+    , m_userId(userId)
 {
     //解码器初始化
     int err;
@@ -35,6 +38,7 @@ SDLAudioWrite::~SDLAudioWrite()
     // 关闭音频设备和 SDL
     SDL_CloseAudio();
     SDL_Quit();
+    opus_decoder_destroy(decoder);
 
 }
 void SDLAudioWrite::slot_playAudioFrame(QByteArray recvBuffer)
@@ -64,6 +68,7 @@ void SDLAudioWrite::audioCallback(void *userdata, Uint8 *stream, int len)
         if (frameSizeDecoded < 0) {
             return;
         }
+        AsrClient::instance().submitPcm48k(audio->m_userId, decodedData, frameSizeDecoded);
 //        解码函数 opus_decode 第一个参数 【解码器】 第二个参数要【解码的缓冲区】, 第三参数【缓冲区大小】, 第四参数【输出的
 //        缓冲区】, 第五参数【缓冲区大小】, 第六参数【选项, 默认值, 表示内容丢失也要解码】
 
@@ -72,6 +77,7 @@ void SDLAudioWrite::audioCallback(void *userdata, Uint8 *stream, int len)
 //                            , recvBuffer.size() , 100);
         SDL_MixAudioFormat( stream , (uint8_t*)decodedData  , AUDIO_S16LSB
                             ,  frameSizeDecoded*sizeof(opus_int16), 100);
+        audio->m_totalSamplesPlayed += 960;
     }
 }
 //计算比特率 压缩比

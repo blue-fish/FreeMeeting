@@ -1,9 +1,10 @@
-#ifndef SDLAUDIOWRITE_H
+﻿#ifndef SDLAUDIOWRITE_H
 #define SDLAUDIOWRITE_H
 
 #include <QObject>
 #include"AudioWorld.h"
 #include<mutex>
+#include<atomic>
 #include<deque>
 class SDLAudioWrite : public QObject
 {
@@ -12,8 +13,10 @@ class SDLAudioWrite : public QObject
 signals:
 
 public:
-    explicit SDLAudioWrite(QObject *parent = nullptr);
+    explicit SDLAudioWrite(int userId = 0, QObject *parent = nullptr);
     ~SDLAudioWrite();
+    int64_t getPlayedDurationMs() const { return m_totalSamplesPlayed.load() / 48; }
+    void setUserId(int userId) { m_userId = userId; }
 public:
     //开始播放
     void slot_openAudio()
@@ -43,6 +46,8 @@ private:
     std::deque<QByteArray> m_audioQueue;
     std::mutex m_mutex;
     OpusDecoder* decoder;
+    std::atomic<int64_t> m_totalSamplesPlayed{0};
+    int m_userId = 0;
 };
 
 #endif // SDLAUDIOWRITE_H

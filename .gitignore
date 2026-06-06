@@ -11,7 +11,59 @@ Makefile*
 *.dll
 *.a
 *.lib
+ui_*.h
+.qmake.stash
+debug/
+release/
+object_script.*
 
 # Qt Creator 配置文件
 *.pro.user
 *.pro.user.**.zip
+
+# Local tooling
+.codegraph/
+.codex/
+.vscode/
+codex-skills/
+
+# Temporary scripts
+apply_fixes.ps1
+fix_usershow.ps1
+fix_video.ps1
+restore_usershow.ps1
+
+# Large third-party/model directories
+sherpa-onnx-master/
+sherpa-onnx-streaming-paraformer-bilingual-zh-en/
+
+# ASR helper build artifacts/logs
+asr_helper/build*/
+asr_helper/release/
+asr_helper/debug/
+asr_helper/stdout.txt
+asr_helper/stderr.txt
+
+# Local configs/docs
+releaseconfig.ini
+项目分析.md
+
+# ASR helper historical/test files
+asr_helper/_baseline.py
+asr_helper/main.cpp
+asr_helper/main_backup2.cpp
+asr_helper/main_sherpa_old.cpp
+asr_helper/test_client.py
+asr_helper/test_client2.py
+asr_helper/test_minimal.cpp
+asr_helper/onnx_lib/
+asr_helper/onnx_lib_v2/
+asr_helper/wenet_core/
+asr_helper/wenet_diag.h
+asr_helper/AGENTS.md
+asr_helper/ASR模块问题日志.md
+asr_helper/onnx_include/
+asr_helper/shim/
+asr_helper/asr_helper.pro
+asr_helper/shim/
+asr_helper_old/

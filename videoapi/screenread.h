@@ -14,7 +14,7 @@ public:
     explicit ScreenRead(QObject *parent = nullptr);
     ~ScreenRead();
 signals:
-    void SIG_getScreenFrame(QImage img);
+    void SIG_getScreenFrame(QImage img,qint64 time);
 
 public slots:
     void slot_getSreenFrame();

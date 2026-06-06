@@ -1,12 +1,12 @@
-#include "myfacedetact.h"
-
-#include "objdetect/objdetect.hpp"
-#include<QCoreApplication>
-#include<QDebug>
+﻿#include "myfacedetact.h"
 
 //用于做人脸识别的对象，加载xml，调用方法
-CascadeClassifier face_cascade;
-CascadeClassifier eyes_cascade;
+//CascadeClassifier face_cascade;
+//CascadeClassifier eyes_cascade;
+
+#define DETECT_BUFFER_SIZE 0x20000
+static unsigned char* g_pResultBuffer = nullptr;
+
 MyFaceDetact::MyFaceDetact(QObject *parent) : QObject(parent)
 {
 
@@ -14,87 +14,102 @@ MyFaceDetact::MyFaceDetact(QObject *parent) : QObject(parent)
 
 void MyFaceDetact::FaceDetectInit()
 {
-    // 将 xml 文件放在 exe 同级的目录下面
-     QString face_cascade_name = QCoreApplication::applicationDirPath()+"/haarcascade_frontalface_default.xml";
-     //+"/haarcascade_frontalface_alt_tree.xml";//+ "/lbpcascade_frontalface.xml" ;
-     //"haarcascade_frontalface_alt.xml" //lbpcascade_frontalface.xml;
-             QString eyes_cascade_name = QCoreApplication::applicationDirPath()
-              // +"/haarcascade_eye.xml";
-              +"/haarcascade_eye_tree_eyeglasses.xml";
-              //haarcascade_eye_tree_eyeglasses.xml;
-     //根据路径加载xml文件
-     qDebug() << face_cascade_name;
-      //-- 1. Load the cascade
-      if( !face_cascade.load( face_cascade_name.toStdString() ) )
-      {
-          qDebug()<< "--(!)Error loading face " ;
-          return;
-      }
-      qDebug() << eyes_cascade_name;
-      if( !eyes_cascade.load( eyes_cascade_name.toStdString() ) )
-      {
-          qDebug()<<"--(!)Error loading eyes " ;
-          return;
-      }
+    // 将xml文件放在 exe 同级的目录下面
+    // QString face_cascade_name = QCoreApplication::applicationDirPath()+"/haarcascade_frontalface_default.xml";
+    // //+"/haarcascade_frontalface_alt_tree.xml";//+ "/lbpcascade_frontalface.xml" ;
+    // //"haarcascade_frontalface_alt.xml" //lbpcascade_frontalface.xml;
+    //         QString eyes_cascade_name = QCoreApplication::applicationDirPath()
+    //          // +"/haarcascade_eye.xml";
+    //          +"/haarcascade_eye_tree_eyeglasses.xml";
+    //          //haarcascade_eye_tree_eglasses.xml;
+    // //根据路径加载xml文件
+    // qDebug() << face_cascade_name;
+    //  //-- 1. Load the cascade
+    //  if( !face_cascade.load( face_cascade_name.toStdString() ) )
+    //  {
+    //      qDebug()<< "--(!)Error loading face " ;
+    //      return;
+    //  }
+    //  qDebug() << eyes_cascade_name;
+    //  if( !eyes_cascade.load( eyes_cascade_name.toStdString() ) )
+    //  {
+    //      qDebug()<<"--(!)Error loading eyes " ;
+    //      return;
+    //  }
+
+    // libfacedetection CNN 模型初始化
+    // 分配检测结果缓冲区
+    if (!g_pResultBuffer)
+    {
+        g_pResultBuffer = new unsigned char[DETECT_BUFFER_SIZE];
+    }
+    qDebug() << "FaceDetectInit: libfacedetection CNN ready, buffer:" << static_cast<void*>(g_pResultBuffer);
 }
 
 void MyFaceDetact::detectAndDisplay(Mat &frame, std::vector<Rect> &faces)
 {
-    Mat frame_gray;
-     //首先 , 得到无颜色的图片用于做识别
-     cvtColor( frame, frame_gray, CV_BGR2GRAY );
-     equalizeHist( frame_gray, frame_gray );
-     //-- 多尺寸检测人脸
-     //第三个参数 每个图像比例下图像大小减少多少的参数。
-     //第四个参数 指定每个候选矩形应该为邻居保留多少个像素。
-     //第五个参数 参数与函数 cvHaarDetectObjects 中的旧级联具有相同的含义。是新版本还是旧
-     //版本
-     //第六个参数 最小可能对象大小。小于该值的对象将被忽略。
-     //第七个参数 最大可能对象大小。大于该值的对象将被忽略
-     face_cascade.detectMultiScale( frame_gray, faces/* ,
-                                    1.1, 6, 0, Size(60,60) */ );
+    static int s_frameCount = 0;
+    ++s_frameCount;
+    faces.clear();
 
+    if (!g_pResultBuffer) {
+        qDebug() << "FaceDetect: result buffer is null";
+        return;
+    }
 
+    if (frame.empty() || frame.channels() != 3) {
+        qDebug() << "FaceDetect: invalid frame, empty:" << frame.empty() << "channels:" << frame.channels();
+        return;
+    }
 
-     //imshow( "capture_face", frame );
-     //为了防止误识别, 再识别眼睛
-     for( auto ite = faces.begin() ; ite != faces.end() ; )
-     {
-         Rect rct = *ite;
-         Mat faceROI = frame_gray( rct );
-         std::vector<Rect> eyes;
-     //-- 在每张人脸上检测双眼
-     eyes_cascade.detectMultiScale( faceROI, eyes /*, 1.1, 2, 0 , Size(20, 20)*/ );
-     //正常 鼻子的大小 应该不超过脸的 1/3
-     if( eyes.size() != 2 )
-     {
-         ite = faces.erase(ite);
-     }else
-     {
-         if( rct.height*0.5 < eyes[0].y ){
-             ite = faces.erase(ite);
-             continue;
-     }
-     // ellipse( frame, center, Size( rct.width*0.5, rct.height*0.5), 0, 0, 360,
-     //Scalar( 255, 0, 255 ), 4, 8, 0 );
-     // Rect rctnose;
-     // rctnose.x = nose[0].x + rct.x;
-     // rctnose.y = nose[0].y + rct.y;
-     // rctnose.width = nose[0].width;
-     // rctnose.height = nose[0].height;
-     // Point nosecenter( rctnose.x + rctnose.width*0.5, rctnose.y+rctnose.height*0.5 );
-     // ellipse( frame, nosecenter, Size( rctnose.width*0.5, rctnose.height*0.5),0, 0, 360, Scalar( 255, 0, 255 ), 4, 8, 0 );
-     ++ite;
-     }
-     }
-     //绘制识别的人脸矩形
-     for( auto ite = faces.begin() ; ite != faces.end() ; ++ite )
-     {
-         Rect rct = *ite;
-         Point center( rct.x + rct.width*0.5, rct.y + rct.height*0.5 );
-         ellipse( frame, center, Size( rct.width*0.5, rct.height*0.5), 0, 0, 360,
-                  Scalar( 255, 0, 255 ), 4, 8, 0 );
-     }
-     //-- 显示结果图像
-     //imshow( window_name_face, frame );
+    // 使用 libfacedetection CNN 模型检测人脸
+    // facedetect_cnn 要求输入 BGR 格式图像
+    int* pResults = facedetect_cnn(
+        g_pResultBuffer,
+        frame.ptr(0),         // BGR 图像数据
+        frame.cols,           // 宽度
+        frame.rows,           // 高度
+        (int)frame.step       // 步长
+    );
+
+    if (!pResults) {
+        if (s_frameCount % 30 == 0) {
+            qDebug() << "FaceDetect: facedetect_cnn returned null";
+        }
+        return;
+    }
+
+    int nFace = *pResults;
+    for (int i = 0; i < nFace; i++)
+    {
+        // libfacedetection returns 16 short values per face:
+        // confidence, x, y, w, h, landmarks...
+        short* p = ((short*)(pResults + 1)) + 16 * i;
+        int confidence = p[0];
+        int x = p[1];
+        int y = p[2];
+        int w = p[3];
+        int h = p[4];
+
+        // 跳过置信度过低的人脸
+        if (confidence < 60 || w <= 0 || h <= 0) continue;
+
+        faces.push_back(Rect(x, y, w, h));
+    }
+
+    if (s_frameCount % 30 == 0 || !faces.empty()) {
+        qDebug() << "FaceDetect: raw faces:" << nFace
+                 << "accepted:" << faces.size()
+                 << "frame:" << frame.cols << "x" << frame.rows
+                 << "step:" << frame.step;
+    }
+
+    //在原图上绘制人脸椭圆(保留原有绘制逻辑)
+    for (auto ite = faces.begin(); ite != faces.end(); ++ite)
+    {
+        Rect rct = *ite;
+        Point center( rct.x + rct.width*0.5, rct.y + rct.height*0.5 );
+        ellipse( frame, center, Size( rct.width*0.5, rct.height*0.5), 0, 0, 360,
+                 Scalar( 255, 0, 255 ), 4, 8, 0 );
+    }
 }

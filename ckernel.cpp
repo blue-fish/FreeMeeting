@@ -7,6 +7,7 @@
 #include"QInputDialog"
 #include"QRegExp"
 #include"QTime"
+#include"QDateTime"
 #define NetPackMap(a) m_netPackMap[a - _DEF_PACK_BASE]
 
 //设置协议映射关系
@@ -123,8 +124,8 @@ Ckernel::Ckernel(QObject *parent) : QObject(parent)
 #ifdef USE_OPUS
     //SDL的音频采集
     m_pSDLAudioRead = new SDLAudioRead;
-    connect(m_pSDLAudioRead,SIGNAL(SIG_sendAudioFrame(QByteArray ))
-            ,this,SLOT(slot_audioFrame(QByteArray)));
+    connect(m_pSDLAudioRead,SIGNAL(SIG_sendAudioFrame(QByteArray,int64_t))
+            ,this,SLOT(slot_audioFrame(QByteArray,int64_t)));
     
 #if 0
     SherpaOnnxManager::instance().initialize(
@@ -147,12 +148,12 @@ Ckernel::Ckernel(QObject *parent) : QObject(parent)
 
 
     m_pVideoRead = new VideoRead;
-    connect(m_pVideoRead,SIGNAL(SIG_sendVideoFrame(QImage)),
-            this,SLOT(slot_sendVideoFrame(QImage)));
+    connect(m_pVideoRead,SIGNAL(SIG_sendVideoFrame(QImage,qint64)),
+            this,SLOT(slot_sendVideoFrame(QImage,qint64)));
 
     m_pScreenRead = new ScreenRead;
-    connect(m_pScreenRead,SIGNAL( SIG_getScreenFrame(QImage)),
-            this,SLOT(slot_sendVideoFrame(QImage)));
+    connect(m_pScreenRead,SIGNAL( SIG_getScreenFrame(QImage,qint64)),
+            this,SLOT(slot_sendVideoFrame(QImage,qint64)));
 
     m_pSendVideoWorker = QSharedPointer<sendVideoWorker> (new sendVideoWorker);
     connect(this ,SIGNAL(SIG_SendVideo(char*,int)),
@@ -428,6 +429,16 @@ void Ckernel::slot_dealRoomMemberRq(uint sock, char *buf, int nlen)
     {
         aw = new SDLAudioWrite(rq->m_UserID);
         m_mapIdtoSDLAudioWrite[rq->m_UserID]=aw ;
+        AVSyncManager* syncMgr = new AVSyncManager(rq->m_UserID, aw);
+        int uid = rq->m_UserID;
+        connect(syncMgr, &AVSyncManager::playAudioFrame, aw, [aw](const QByteArray& data) {
+            aw->slot_playAudioFrame(data);
+        });
+        connect(syncMgr, &AVSyncManager::playVideoFrame, m_pRoomdlg, [this, uid](const QImage& image) {
+            m_pRoomdlg->slot_refreshUser(uid, const_cast<QImage&>(image));
+        });
+        syncMgr->start();
+        m_mapIDToSyncManager[rq->m_UserID] = syncMgr;
     }
    #else
     //音频内容
@@ -456,6 +467,12 @@ void Ckernel::slot_dealLeaveRoomRq(uint sock, char *buf, int nlen)
     m_mapIdToName.erase(rq->m_nUserId);
     //去掉对应音频
 #ifdef USE_OPUS
+    if(m_mapIDToSyncManager.count(rq->m_nUserId) > 0) {
+        AVSyncManager* syncMgr = m_mapIDToSyncManager[rq->m_nUserId];
+        m_mapIDToSyncManager.erase(rq->m_nUserId);
+        syncMgr->stop();
+        delete syncMgr;
+    }
     if(m_mapIdtoSDLAudioWrite.count(rq->m_nUserId)>0)
     {
         SDLAudioWrite * pAw =m_mapIdtoSDLAudioWrite[rq->m_nUserId];
@@ -488,35 +505,49 @@ void Ckernel::slot_dealAudioFrameRq(uint sock, char *buf, int nlen)
     /// QByteArray audioFrame;
     //序列化
 
-    int userId=m_id;
+    int userId = m_id;
     int roomId = m_roomid;
-    char* tmp=buf;
+    int64_t timestamp = 0;
+    QByteArray ba;
 
-    tmp += sizeof(int);
-    //按照整形取
-    userId=*(int*)tmp ;
-    tmp += sizeof(int);
+    STRU_AUDIO_FRAME_V2* pack = (STRU_AUDIO_FRAME_V2*)buf;
+    int payloadLen = nlen - static_cast<int>(sizeof(STRU_AUDIO_FRAME_V2));
+    if (nlen >= static_cast<int>(sizeof(STRU_AUDIO_FRAME_V2)) &&
+        payloadLen >= 0 && pack->dataLen == payloadLen) {
+        userId = pack->userid;
+        roomId = pack->roomid;
+        timestamp = pack->timestamp;
+        ba = QByteArray(pack->data, pack->dataLen);
+    } else {
+        char* tmp=buf;
 
-    roomId=*(int*)tmp ;
-    tmp += sizeof(int);
+        tmp += sizeof(int);
+        //按照整形取
+        userId=*(int*)tmp ;
+        tmp += sizeof(int);
 
+        roomId=*(int*)tmp ;
+        tmp += sizeof(int);
 
-    tmp += sizeof(int);
+        tmp += sizeof(int);
+        tmp += sizeof(int);
+        tmp += sizeof(int);
 
-    tmp += sizeof(int);
-
-    tmp += sizeof(int);
-
-    int nbufLen=nlen-sizeof(int)*6;
-    QByteArray ba (tmp,nbufLen);
+        int nbufLen=nlen-sizeof(int)*6;
+        timestamp = QDateTime::currentMSecsSinceEpoch();
+        ba = QByteArray(tmp,nbufLen);
+    }
 
     if(m_roomid == roomId)
     {
         #ifdef USE_OPUS
-                if(m_mapIdtoSDLAudioWrite.count(userId)>0 )
+                if(m_mapIDToSyncManager.count(userId)>0 )
                 {
-                    SDLAudioWrite* aw = m_mapIdtoSDLAudioWrite[userId];
-                    aw->slot_playAudioFrame(ba);
+                    m_mapIDToSyncManager[userId]->addAudioFrame(timestamp, ba);
+                }
+                else if(m_mapIdtoSDLAudioWrite.count(userId)>0 )
+                {
+                    m_mapIdtoSDLAudioWrite[userId]->slot_playAudioFrame(ba);
                 }
         #else
                 if(m_mapIdtoAudioWrite.count(userId)>0 )
@@ -868,97 +899,26 @@ void Ckernel::slot_asrStatusChanged(bool available, const QString& message)
 /// int sec;
 /// int msec;
 /// QByteArray audioFrame;
-void Ckernel::slot_audioFrame(QByteArray ba)
+void Ckernel::slot_audioFrame(QByteArray ba, int64_t timestamp)
 {
-    int nPackSize = 6*sizeof(int)+ba.size();
+    int nPackSize = sizeof(STRU_AUDIO_FRAME_V2)+ba.size();
     char* buf = new char[nPackSize];
-    char* tmp =buf;
-    //序列化
-    int type = DEF_PACK_AUDIO_FRAME;
-
-    int userId=m_id;
-    int roomId = m_roomid;
-    QTime tm = QTime::currentTime();
-    int min = tm.minute();
-    int sec = tm.second();
-    int msec = tm.msec();
-
-    *(int*)tmp = type;
-    tmp += sizeof(int);
-    //按照整形存
-    *(int*)tmp = userId;
-    tmp += sizeof(int);
-
-    *(int*)tmp = roomId;
-    tmp += sizeof(int);
-
-    *(int*)tmp = min;
-    tmp += sizeof(int);
-
-    *(int*)tmp = sec;
-    tmp += sizeof(int);
-
-    *(int*)tmp = msec;
-    tmp += sizeof(int);
-
-    memcpy(tmp,ba.data(),ba.size());
+    STRU_AUDIO_FRAME_V2* pack = (STRU_AUDIO_FRAME_V2*)buf;
+    timestamp = timestamp ? timestamp : QDateTime::currentMSecsSinceEpoch();
+    pack->type = DEF_PACK_AUDIO_FRAME;
+    pack->userid = m_id;
+    pack->roomid = m_roomid;
+    pack->timestamp = timestamp;  // 使用采集回调的时间戳
+    pack->dataLen = ba.size();
+    memcpy(pack->data,ba.data(),ba.size());
     m_pAVClient[audio_client]->SendData(0,buf,nPackSize);
     delete[] buf;
 }
 #include<QBuffer>
 
 
-void Ckernel::slot_sendVideoFrame(QImage img)
+void Ckernel::slot_sendVideoFrame(QImage img,qint64 time)
 {
-//   qDebug()<<__func__ ;
-//    //显示图片
-//    slot_refreshVideo(m_id  ,img);
-//    //压缩
-//    //压缩图片从 RGB24 格式压缩到 JPEG 格式, 发送出去
-//    QByteArray ba;
-//    QBuffer qbuf(&ba); // QBuffer 与 QByteArray 字节数组建立联系
-//    img.save( &qbuf , "JPEG" , 50 ); //将图片的数据写入 ba
-//    //使用 ba 对象, 可以获取图片对应的缓冲区
-//    //可以使用 ba.data() , ba.size()将缓冲区发送出去
-//    //发送
-
-//    ///视频数据帧
-//    /// 成员描述
-//    /// int type;
-//    /// int userId;
-//    /// int roomId;
-//    /// int min;
-//    /// int sec;
-//    /// int msec;
-//    /// QByteArray videoFrame;
-//    int nPackSize = 6*sizeof(int)+ba.size();
-//    char* buf = new char [nPackSize];
-//    char* tmp = buf;
-
-//    *(int*)tmp = DEF_PACK_VIDEO_FRAME;
-//    tmp+= sizeof(int);
-
-//    *(int*)tmp =  m_id;
-//    tmp+= sizeof(int);
-
-//    *(int*)tmp = m_roomid;
-//    tmp+= sizeof(int);
-
-//    //用于延迟过久 丢帧的参考时间
-//    QTime tm=QTime::currentTime();
-//    *(int*)tmp =  tm.minute();
-//    tmp+= sizeof(int);
-
-//    *(int*)tmp = tm.second();
-//    tmp+= sizeof(int);
-//    *(int*)tmp = tm.msec();
-//    tmp+= sizeof(int);
-
-//    memcpy(tmp,ba.data(),ba.size());
-
-//    //将视频发送变为一个信号，放到另一个线程执行 todo
-//    Q_EMIT SIG_SendVideo(buf,nPackSize);
-
  /**********************************************************/
     // 显示图片
     slot_refreshVideo(m_id, img);
@@ -973,14 +933,14 @@ void Ckernel::slot_sendVideoFrame(QImage img)
 
     // 添加到编码队列
     if(encoder) {
-        encoder->addFrame(m_id, m_roomid, img);
+        encoder->addFrame(m_id, m_roomid, img,time);
     }
 }
 void Ckernel::slot_sendEncodedVideo(char* buf, int len)
 {
     // 更新时间戳为当前系统时间
-    STRU_VIDEO_H264_V2* pack = (STRU_VIDEO_H264_V2*)buf;
-    pack->timestamp = QDateTime::currentMSecsSinceEpoch();
+    //STRU_VIDEO_H264_V2* pack = (STRU_VIDEO_H264_V2*)buf;
+    //pack->timestamp = QDateTime::currentMSecsSinceEpoch();
 
     m_pAVClient[video_client]->SendData(0, buf, len);
     delete[] buf;
@@ -1029,8 +989,7 @@ void Ckernel::slot_commitVefCode(QByteArray ba)
 {
     CJson json(ba);
     STRU_VEFCODE_RS rs;
-    rs.m_userid=m_id;
-    strcpy_s(rs.vefCode,sizeof (rs.vefCode),json.json_get_string("code").toStdString().c_str());
-    strcpy_s(rs.m_tel,sizeof(rs.m_tel),json.json_get_string("tel").toStdString().c_str() );
-    m_pClient->SendData(0,(char*)&rs,sizeof(rs));
+
 }
+
+

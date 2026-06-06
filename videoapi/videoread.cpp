@@ -1,7 +1,8 @@
-#include "videoread.h"
+﻿#include "videoread.h"
 #include <QMessageBox>
 #include<QDebug>
-#include"QPainter"
+#include "QPainter"
+#include <QDateTime>
 
 VideoRead::VideoRead(QObject *parent) : QObject(parent),m_tuer(":/images/tuer.png"),m_hat(":/images/hat.png")
 {
@@ -41,8 +42,9 @@ void VideoRead::slot_getVideoFram()
     std::vector<Rect> faces;
     //存放上一次的矩形
     //m_vecLastFace=
-    if(m_moji !=0)
-        MyFaceDetact::detectAndDisplay(frame,faces);
+    //qDebug() << "moji mode:" << m_moji;
+    MyFaceDetact::detectAndDisplay(frame,faces);
+   // qDebug() << "detectAndDisplay faces:" << faces.size();
     cvtColor(frame,frame,CV_BGR2RGB);
 
     //定义 QImage 对象, 用于发送数据以及图片显示
@@ -57,9 +59,11 @@ void VideoRead::slot_getVideoFram()
             tmpImg = m_hat;
             break;
     }
+    //qDebug() << "faces detected:" << faces.size() << " m_vecLastFace.size:" << m_vecLastFace.size();
     if(faces.size()>0)
         m_vecLastFace=faces;
      //将道具绘制到图片
+    //qDebug() << "drawing moji, m_vecLastFace.size:" << m_vecLastFace.size() << " tmpImg null:" << tmpImg.isNull() << " size:" << tmpImg.size();
     if(m_moji == moji_tuer || m_moji == moji_hat)
     {
         //QPainter 使用
@@ -68,8 +72,10 @@ void VideoRead::slot_getVideoFram()
         for(int i=0; i<m_vecLastFace.size();i++)
         {
             Rect rct  = m_vecLastFace[i];
+            qDebug() << "face rect:" << rct.x << rct.y << rct.width << rct.height;
             int x=rct.x+rct.width*0.5 - tmpImg.width()*0.5+20 ;
             int y=rct.y - tmpImg.height();
+            qDebug() << "draw pos:" << x << y;
             QPoint p(x,y);
             paint.drawImage(p,tmpImg);
 
@@ -78,7 +84,8 @@ void VideoRead::slot_getVideoFram()
     //【缩放操作】转化为大小更小的图片 保持缩放比
     image = image.scaled( IMAGE_WIDTH,IMAGE_HEIGHT, Qt::KeepAspectRatio );
     //发送图片
-    Q_EMIT SIG_sendVideoFrame( image );
+    qint64 time = QDateTime::currentMSecsSinceEpoch();
+    Q_EMIT SIG_sendVideoFrame(image, time);
 }
 
 void VideoRead::slot_openVideo()

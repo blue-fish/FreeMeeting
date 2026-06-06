@@ -1,5 +1,6 @@
 #include "sdlaudioread.h"
-
+#include <QDateTime>
+#include "asrclient.h"
 SDLAudioRead::SDLAudioRead(QObject *parent) : QObject(parent)
 {
     //编码初始化
@@ -65,20 +66,25 @@ SDLAudioRead::~SDLAudioRead()
 
 }
 
-void SDLAudioRead::slot_sendAudioFrame( QByteArray &bt )
+void SDLAudioRead::slot_sendAudioFrame( QByteArray &bt, int64_t timestamp )
 {
-    Q_EMIT SIG_sendAudioFrame(bt);
+    Q_EMIT SIG_sendAudioFrame(bt, timestamp);
 }
 
-//音频回调函数作用：将采集到的数据 编码发送, 此处稍后加编码
+//音频回调函数作用：将采集到的数据 编码发送
 void SDLAudioRead::audioCallback(void *userdata, Uint8 *stream, int len)
 {
    // qDebug()<<"sample thread:"<<QThread::currentThreadId();
     SDLAudioRead * audio = (SDLAudioRead *)userdata;
+
     if( len < 1920 ) return;
 
-    //静音检测
-    //如果是就返回
+    int16_t *pcm48k = reinterpret_cast<int16_t*>(stream);
+    int sampleCount48k = len / sizeof(int16_t);  // 每次回调通常是 960 个样本 (20ms@48kHz)
+    // 重采样到 16kHz（3:1 三点平均）
+    AsrClient::instance().submitPcm48k(audio->m_userId, pcm48k, sampleCount48k);
+
+//静音检测，如果是就返回
 #ifdef USE_VAD
     int16_t *audioData = reinterpret_cast<int16_t*>(stream);
     int frameSize = 480; // 160 样本/帧（假设 10ms@16kHz，需根据实际调整）
@@ -93,6 +99,7 @@ void SDLAudioRead::audioCallback(void *userdata, Uint8 *stream, int len)
 #endif
 
     unsigned char opusData[4096];
+    int64_t timestamp = QDateTime::currentMSecsSinceEpoch();//采集时间戳
     int nbBytes = opus_encode( audio->encoder, (const opus_int16*)( stream ),960, opusData,
     sizeof(opusData));
     if (nbBytes < 0)//返回的nbBytes是长度
@@ -106,5 +113,5 @@ void SDLAudioRead::audioCallback(void *userdata, Uint8 *stream, int len)
     QByteArray sendBuffer( (char*) opusData,nbBytes); //使用编码以后的缓冲区
 
     //编码并发送 注意是多线程. 此并非主线程.
-    audio->slot_sendAudioFrame( sendBuffer );
+    audio->slot_sendAudioFrame( sendBuffer, timestamp);
 }

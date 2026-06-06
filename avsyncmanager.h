@@ -1,4 +1,4 @@
-#ifndef AVSYNCMANAGER_H
+﻿#ifndef AVSYNCMANAGER_H
 #define AVSYNCMANAGER_H
 
 #include <QObject>
@@ -8,6 +8,8 @@
 #include <QElapsedTimer>
 #include <memory>
 #include <QImage>
+
+class SDLAudioWrite;
 
 // 音视频帧基类
 struct MediaFrame {
@@ -41,7 +43,7 @@ class AVSyncManager : public QObject
 {
     Q_OBJECT
 public:
-    explicit AVSyncManager(int userid, QObject *parent = nullptr);
+    explicit AVSyncManager(int userid, SDLAudioWrite* audioWrite, QObject *parent = nullptr);
     ~AVSyncManager();
 
     // 添加音视频帧
@@ -83,6 +85,9 @@ private:
     int m_bufferTimeMs;         // 缓冲时间
     bool m_isRunning;
     bool m_hasReceivedFirstFrame;  // 添加：是否收到第一帧标志
+    bool m_buffering;
+    SDLAudioWrite* m_audioWrite;
+    int64_t m_clockOffset;
 
     // 统计信息
     QElapsedTimer m_elapsedTimer;

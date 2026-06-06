@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1000</width>
-    <height>700</height>
+    <width>775</width>
+    <height>586</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -153,8 +153,8 @@ QPushButton:pressed {
           <rect>
            <x>0</x>
            <y>0</y>
-           <width>781</width>
-           <height>571</height>
+           <width>541</width>
+           <height>580</height>
           </rect>
          </property>
          <property name="sizePolicy">
@@ -222,7 +222,7 @@ QScrollBar::handle:vertical:hover {
            <x>0</x>
            <y>0</y>
            <width>218</width>
-           <height>578</height>
+           <height>464</height>
           </rect>
          </property>
          <widget class="QWidget" name="wdg_list" native="true">

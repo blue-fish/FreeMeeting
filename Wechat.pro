@@ -4,9 +4,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++11
 
-# You can make your code fail to compile if it uses deprecated APIs.
-# In order to do so, uncomment the following line.
-#DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
+RESOURCES += resourcce.qrc
 
 include(./netapi/netapi.pri)
 INCLUDEPATH += ./netapi
@@ -23,6 +21,9 @@ INCLUDEPATH += ./OpusApi/
 include(./videoapi/videoapi.pri)
 INCLUDEPATH += ./videoapi/
 
+include(./sherpaApi/sherpaApi.pri)
+INCLUDEPATH += ./sherpaApi/
+
 INCLUDEPATH += $$PWD/ffmpeg-4.2.2/include
 LIBS += $$PWD/ffmpeg-4.2.2/lib/avcodec.lib\
  $$PWD/ffmpeg-4.2.2/lib/avdevice.lib\
@@ -33,22 +34,21 @@ LIBS += $$PWD/ffmpeg-4.2.2/lib/avcodec.lib\
  $$PWD/ffmpeg-4.2.2/lib/swresample.lib\
  $$PWD/ffmpeg-4.2.2/lib/swscale.lib
 
-
 LIBS += -lWs2_32
-SOURCES += \
-    avsyncmanager.cpp \
-    ckernel.cpp \
-    logindialog.cpp \
-    main.cpp \
-    roomdialog.cpp \
-    usershow.cpp \
-    videodecoder.cpp \
-    videoencoder.cpp \
-    wechatdialog.cpp
+
+FACE_DETECTION_DLL = $$PWD/videoapi/libfacedetection/bin/libfacedetection.dll
+CONFIG(debug, debug|release) {
+    FACE_DETECTION_OUT_DIR = $$OUT_PWD/debug
+} else {
+    FACE_DETECTION_OUT_DIR = $$OUT_PWD/release
+}
+exists($$FACE_DETECTION_DLL) {
+    QMAKE_POST_LINK += $$quote($$QMAKE_COPY $$shell_path($$FACE_DETECTION_DLL) $$shell_path($$FACE_DETECTION_OUT_DIR/libfacedetection.dll))
+}
 
 HEADERS += \
+    asrclient.h \
     avsyncmanager.h \
-    cjson.h \
     ckernel.h \
     logindialog.h \
     roomdialog.h \
@@ -63,10 +63,14 @@ FORMS += \
     usershow.ui \
     wechatdialog.ui
 
-# Default rules for deployment.
-qnx: target.path = /tmp/$${TARGET}/bin
-else: unix:!android: target.path = /opt/$${TARGET}/bin
-!isEmpty(target.path): INSTALLS += target
-
-RESOURCES += \
-    resourcce.qrc
+SOURCES += \
+    asrclient.cpp \
+    avsyncmanager.cpp \
+    ckernel.cpp \
+    logindialog.cpp \
+    main.cpp \
+    roomdialog.cpp \
+    usershow.cpp \
+    videodecoder.cpp \
+    videoencoder.cpp \
+    wechatdialog.cpp

@@ -21,6 +21,7 @@ struct EncodeTask {
     int roomid;
     QImage image;
     int64_t pts;
+    int64_t captureTimestamp;
 };
 
 class VideoEncoder : public QThread
@@ -32,7 +33,7 @@ public:
 
     void init(int width, int height, int fps = 15, int bitrate = 400000); //宽高、帧率和比特率
     void uninit();
-    void addFrame(int userid, int roomid, const QImage& image);
+    void addFrame(int userid, int roomid, const QImage& image,int64_t time);
     void stop();
 
 signals:
@@ -47,7 +48,6 @@ private:
 
 private:
     // 编码器相关
-
     AVCodec* m_codec;
     AVCodecContext* m_codecCtx;
     AVFrame* m_frame;
@@ -64,6 +64,7 @@ private:
     int m_width;
     int m_height;
     int64_t m_pts;
+    //int64_t captureTime;
 };
 
 #endif // VIDEOENCODER_H

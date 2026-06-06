@@ -136,7 +136,7 @@
     &lt;/rect&gt;
   &lt;/property&gt;
   &lt;property name=&quot;pixmap&quot;&gt;
-    &lt;pixmap resource=&quot;resourcce.qrc&quot;&gt;:/images/background.png&lt;/pixmap&gt; &lt;!-- 替换为渐变背景图 --&gt;
+    &lt;pixmap resource=&quot;resourcce.qrc&quot;&gt;:/images/register.png&lt;/pixmap&gt; &lt;!-- 替换为渐变背景图 --&gt;
   &lt;/property&gt;
   &lt;property name=&quot;scaledContents&quot;&gt;
     &lt;bool&gt;true&lt;/bool&gt;
@@ -426,7 +426,7 @@
   <widget class="QLabel" name="lb_icon">
    <property name="geometry">
     <rect>
-     <x>10</x>
+     <x>5</x>
      <y>10</y>
      <width>220</width>
      <height>400</height>
