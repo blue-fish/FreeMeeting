@@ -14,29 +14,6 @@ MyFaceDetact::MyFaceDetact(QObject *parent) : QObject(parent)
 
 void MyFaceDetact::FaceDetectInit()
 {
-    // 将xml文件放在 exe 同级的目录下面
-    // QString face_cascade_name = QCoreApplication::applicationDirPath()+"/haarcascade_frontalface_default.xml";
-    // //+"/haarcascade_frontalface_alt_tree.xml";//+ "/lbpcascade_frontalface.xml" ;
-    // //"haarcascade_frontalface_alt.xml" //lbpcascade_frontalface.xml;
-    //         QString eyes_cascade_name = QCoreApplication::applicationDirPath()
-    //          // +"/haarcascade_eye.xml";
-    //          +"/haarcascade_eye_tree_eyeglasses.xml";
-    //          //haarcascade_eye_tree_eglasses.xml;
-    // //根据路径加载xml文件
-    // qDebug() << face_cascade_name;
-    //  //-- 1. Load the cascade
-    //  if( !face_cascade.load( face_cascade_name.toStdString() ) )
-    //  {
-    //      qDebug()<< "--(!)Error loading face " ;
-    //      return;
-    //  }
-    //  qDebug() << eyes_cascade_name;
-    //  if( !eyes_cascade.load( eyes_cascade_name.toStdString() ) )
-    //  {
-    //      qDebug()<<"--(!)Error loading eyes " ;
-    //      return;
-    //  }
-
     // libfacedetection CNN 模型初始化
     // 分配检测结果缓冲区
     if (!g_pResultBuffer)

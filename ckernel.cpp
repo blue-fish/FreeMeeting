@@ -561,18 +561,7 @@ void Ckernel::slot_dealAudioFrameRq(uint sock, char *buf, int nlen)
 
 void Ckernel::slot_dealVideoFrameRq(uint sock, char *buf, int nlen)
 {
-//    //拆包
-//    ///视频数据帧
-//    /// 成员描述
-//    /// int type;
-//    /// int userId;
-//    /// int roomId;
-//    /// int min;
-//    /// int sec;
-//    /// int msec;
-//    /// QByteArray videoFrame;
 
-////
 }
 
 void Ckernel::slot_dealVideoH264Rq(uint sock, char* buf, int nlen)
