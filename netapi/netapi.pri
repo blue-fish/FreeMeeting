@@ -8,6 +8,7 @@ INCLUDEPATH+=$$PWD/mediator/
 
 HEADERS += \
     $$PWD/mediator/INetMediator.h \
+    $$PWD/mediator/SslTcpClientMediator.h \
     $$PWD/mediator/TcpClientMediator.h \
     $$PWD/mediator/TcpServerMediator.h \
     $$PWD/mediator/UdpMediator.h \
@@ -20,6 +21,7 @@ HEADERS += \
 
 SOURCES += \
     $$PWD/mediator/INetMediator.cpp \
+    $$PWD/mediator/SslTcpClientMediator.cpp \
     $$PWD/mediator/TcpClientMediator.cpp \
     $$PWD/mediator/TcpServerMediator.cpp \
     $$PWD/mediator/UdpMediator.cpp \

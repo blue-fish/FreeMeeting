@@ -4,6 +4,7 @@
 #include <QObject>
 #include "wechatdialog.h"
 #include"TcpClientMediator.h"
+#include"SslTcpClientMediator.h"
 #include"packdef.h"
 #include"logindialog.h"
 #include"md5.h"

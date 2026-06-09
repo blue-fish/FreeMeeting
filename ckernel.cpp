@@ -106,7 +106,7 @@ Ckernel::Ckernel(QObject *parent) : QObject(parent)
     connect(&AsrClient::instance(),SIGNAL(statusChanged(bool,QString)),
             this,SLOT(slot_asrStatusChanged(bool,QString)));
     //添加网络--第一条tcp连接
-    m_pClient=new TcpClientMediator;
+    m_pClient=new SslTcpClientMediator;
    // m_pClient->OpenNet( m_serverIp.toStdString().c_str(),_DEF_TCP_PORT );
     m_pClient->OpenNet( _DEF_SERVERIP,_DEF_TCP_PORT );
     connect(m_pClient,SIGNAL(SIG_ReadyData(uint,char*,int)),this,SLOT(slot_dealData(uint,char*,int)));
@@ -114,7 +114,7 @@ Ckernel::Ckernel(QObject *parent) : QObject(parent)
     //音频和视频的连接---第二条和第三条tcp连接
     for(int i=0;i<2;i++)
     {
-        m_pAVClient[i] = new TcpClientMediator;
+        m_pAVClient[i] = new SslTcpClientMediator;
         m_pAVClient[i]->OpenNet( _DEF_SERVERIP,_DEF_TCP_PORT );
         connect(m_pAVClient[i],SIGNAL(SIG_ReadyData(uint,char*,int)),
                 this,SLOT(slot_dealData(uint,char*,int)));
